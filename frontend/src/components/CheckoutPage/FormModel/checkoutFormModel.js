@@ -29,7 +29,7 @@ export default {
     },
     zipcode: {
       name: 'zipcode',
-      label: 'CEP*',
+      label: 'CPF/CNPJ*',
       requiredErrorMsg: 'CEP é obrigatório',
       invalidErrorMsg: 'Formato de CEP inválido'
     },
@@ -41,10 +41,6 @@ export default {
     useAddressForPaymentDetails: {
       name: 'useAddressForPaymentDetails',
       label: 'Use this address for payment details'
-    },
-    invoiceId: {
-      name: 'invoiceId',
-      label: 'Use this invoiceId'
     },
     nameOnCard: {
       name: 'nameOnCard',

@@ -1,79 +1,81 @@
+import 'dotenv/config';
 import gracefulShutdown from "http-graceful-shutdown";
 import app from "./app";
+import cron from "node-cron";
 import { initIO } from "./libs/socket";
-import { logger } from "./utils/logger";
+import logger from "./utils/logger";
 import { StartAllWhatsAppsSessions } from "./services/WbotServices/StartAllWhatsAppsSessions";
 import Company from "./models/Company";
+import BullQueue from './libs/queue';
+
 import { startQueueProcess } from "./queues";
-import { TransferTicketQueue } from "./wbotTransferTicketQueue";
-import cron from "node-cron";
+// import { ScheduledMessagesJob, ScheduleMessagesGenerateJob, ScheduleMessagesEnvioJob, ScheduleMessagesEnvioForaHorarioJob } from "./wbotScheduledMessages";
 
-// Configuração do servidor com rate limiting e timeout
-const server = app.listen(process.env.PORT);
+const server = app.listen(process.env.PORT, async () => {
+  const companies = await Company.findAll({
+    where: { status: true },
+    attributes: ["id"]
+  });
 
-// Gerenciamento de sessões em lotes
-async function initializeSessions() {
-  try {
-    const companies = await Company.findAll();
-    const batchSize = 5; // Processa 5 empresas por vez
-    
-    for (let i = 0; i < companies.length; i += batchSize) {
-      const batch = companies.slice(i, i + batchSize);
-      await Promise.all(batch.map(c => StartAllWhatsAppsSessions(c.id)));
-      
-      // Pequena pausa entre lotes para evitar sobrecarga
-      if (i + batchSize < companies.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-    }
-    
-    startQueueProcess();
-    logger.info(`Server started on port: ${process.env.PORT}`);
-  } catch (error) {
-    logger.error("Error starting server:", error);
-    process.exit(1);
+  const allPromises: any[] = [];
+  companies.map(async c => {
+    const promise = StartAllWhatsAppsSessions(c.id);
+    allPromises.push(promise);
+  });
+
+  Promise.all(allPromises).then(async () => {
+
+    await startQueueProcess();
+  });
+
+  if (process.env.REDIS_URI_ACK && process.env.REDIS_URI_ACK !== '') {
+    BullQueue.process();
   }
-}
 
-// Tratamento de erros com retry
-const errorHandler = (type, error) => {
-  logger.error(`${new Date().toUTCString()} ${type}:`, error);
-  // Implementar lógica de retry se necessário
-};
-
-process.on("uncaughtException", err => errorHandler("uncaughtException", err));
-process.on("unhandledRejection", (reason, p) => errorHandler("unhandledRejection", reason));
-
-// Otimização do cron job
-const transferTicketJob = cron.schedule("*/5 * * * *", async () => {
-  try {
-    const timeout = setTimeout(() => {
-      logger.warn("Transfer ticket job timed out");
-      transferTicketJob.stop();
-    }, 60000); // 1 minuto timeout
-
-    await TransferTicketQueue();
-    clearTimeout(timeout);
-  } catch (error) {
-    logger.error("Error in transfer ticket job:", error);
-  }
-}, {
-  scheduled: false
+  logger.info(`Server started on port: ${process.env.PORT}`);
 });
 
-transferTicketJob.start();
+process.on("uncaughtException", err => {
+  console.error(`${new Date().toUTCString()} uncaughtException:`, err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, p) => {
+  console.error(
+    `${new Date().toUTCString()} unhandledRejection:`,
+    reason,
+    p
+  );
+  process.exit(1);
+});
+
+// cron.schedule("* * * * * *", async () => {
+
+//   try {
+//     // console.log("Running a job at 5 minutes at America/Sao_Paulo timezone")
+//     await ScheduledMessagesJob();
+//     await ScheduleMessagesGenerateJob();
+//   }
+//   catch (error) {
+//     logger.error(error);
+//   }
+
+// });
+
+// cron.schedule("* * * * * *", async () => {
+
+//   try {
+//     // console.log("Running a job at 01:00 at America/Sao_Paulo timezone")
+//     console.log("Running a job at 2 minutes at America/Sao_Paulo timezone")
+//     await ScheduleMessagesEnvioJob();
+//     await ScheduleMessagesEnvioForaHorarioJob()
+//   }
+//   catch (error) {
+//     logger.error(error);
+//   }
+
+// });
 
 initIO(server);
-initializeSessions();
-
-// Graceful shutdown otimizado
-gracefulShutdown(server, {
-  signals: "SIGINT SIGTERM",
-  timeout: 30000,
-  development: process.env.NODE_ENV !== "production",
-  onShutdown: async () => {
-    transferTicketJob.stop();
-    logger.info("Shutting down services...");
-  },
-  finally: () => logger.info("Shutdown complete")
-});
+gracefulShutdown(server);

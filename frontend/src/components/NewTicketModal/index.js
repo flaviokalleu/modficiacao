@@ -1,29 +1,26 @@
 import React, { useState, useEffect, useContext } from "react";
+import { useHistory } from "react-router-dom";
 
+import { makeStyles } from "@material-ui/core/styles";
 import Button from "@material-ui/core/Button";
 import TextField from "@material-ui/core/TextField";
 import Dialog from "@material-ui/core/Dialog";
-
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
 import DialogTitle from "@material-ui/core/DialogTitle";
-import Autocomplete, {
-	createFilterOptions,
-} from "@material-ui/lab/Autocomplete";
+import Typography from "@material-ui/core/Typography";
+import Autocomplete, { createFilterOptions } from "@material-ui/lab/Autocomplete";
 import CircularProgress from "@material-ui/core/CircularProgress";
-
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import ButtonWithSpinner from "../ButtonWithSpinner";
 import ContactModal from "../ContactModal";
 import toastError from "../../errors/toastError";
-import { makeStyles } from "@material-ui/core/styles";
 import { AuthContext } from "../../context/Auth/AuthContext";
-import {  WhatsApp } from "@material-ui/icons";
 import { Grid, ListItemText, MenuItem, Select } from "@material-ui/core";
-import Typography from "@material-ui/core/Typography";
 import { toast } from "react-toastify";
-//import ShowTicketOpen from "../ShowTicketOpenModal";
+import { Facebook, Instagram, WhatsApp } from "@material-ui/icons";
+import ShowTicketOpen from "../ShowTicketOpenModal";
 
 const useStyles = makeStyles((theme) => ({
   online: {
@@ -43,6 +40,7 @@ const filter = createFilterOptions({
 const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
   const classes = useStyles();
   const [options, setOptions] = useState([]);
+  const [channelFilter, setChannelFilter] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [searchParam, setSearchParam] = useState("");
@@ -55,9 +53,9 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
   const { user } = useContext(AuthContext);
   const { companyId, whatsappId } = user;
 
-  const [ openAlert, setOpenAlert ] = useState(false);
-	const [ userTicketOpen, setUserTicketOpen] = useState("");
-	const [ queueTicketOpen, setQueueTicketOpen] = useState("");
+  const [openAlert, setOpenAlert] = useState(false);
+  const [userTicketOpen, setUserTicketOpen] = useState("");
+  const [queueTicketOpen, setQueueTicketOpen] = useState("");
 
   useEffect(() => {
     if (initialContact?.id !== undefined) {
@@ -71,11 +69,23 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
     const delayDebounceFn = setTimeout(() => {
       const fetchContacts = async () => {
         api
+          // .get(`/whatsapp/filter`, { params: { companyId, session: 0, channel: channelFilter } })
           .get(`/whatsapp`, { params: { companyId, session: 0 } })
           .then(({ data }) => setWhatsapps(data));
+
+          // .then(({ data }) => {
+          //   const mappedWhatsapps = data.map((whatsapp) => ({
+          //     ...whatsapp,
+          //     selected: false,
+          //   }));
+          //   setWhatsapps(mappedWhatsapps);
+          //   if (channelFilter && mappedWhatsapps.length && mappedWhatsapps?.length === 1 && (user.whatsappId === null || user?.whatsapp?.channel !== channelFilter)) {
+          //     setSelectedWhatsapp(mappedWhatsapps[0].id)
+          //   }
+          // });
       };
 
-      if (whatsappId !== null && whatsappId!== undefined) {
+      if (whatsappId !== null && whatsappId !== undefined) {
         setSelectedWhatsapp(whatsappId)
       }
 
@@ -86,7 +96,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
       setLoading(false);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [])
+  }, [selectedContact, channelFilter])
 
   useEffect(() => {
     if (!modalOpen || searchParam.length < 3) {
@@ -112,18 +122,18 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchParam, modalOpen]);
 
-  // const IconChannel = (channel) => {
-  //   switch (channel) {
-  //     case "facebook":
-  //       return <Facebook style={{ color: "#3b5998", verticalAlign: "middle" }} />;
-  //     case "instagram":
-  //       return <Instagram style={{ color: "#e1306c", verticalAlign: "middle" }} />;
-  //     case "whatsapp":
-  //       return <WhatsApp style={{ color: "#25d366", verticalAlign: "middle" }} />
-  //     default:
-  //       return "error";
-  //   }
-  // };
+  const IconChannel = (channel) => {
+    switch (channel) {
+      case "facebook":
+        return <Facebook style={{ color: "#3b5998", verticalAlign: "middle" }} />;
+      case "instagram":
+        return <Instagram style={{ color: "#e1306c", verticalAlign: "middle" }} />;
+      case "whatsapp":
+        return <WhatsApp style={{ color: "#25d366", verticalAlign: "middle" }} />
+      default:
+        return "error";
+    }
+  };
 
   const handleClose = () => {
     onClose();
@@ -144,11 +154,12 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 
   const handleSaveTicket = async contactId => {
     if (!contactId) return;
-    if (selectedQueue === "" && user.profile !== 'admin') {
+    // if (selectedQueue === "" && user.profile !== 'admin') {
+    if (selectedQueue === "") {
       toast.error("Selecione uma fila");
       return;
     }
-    
+
     setLoading(true);
     try {
       const queueId = selectedQueue !== "" ? selectedQueue : null;
@@ -159,17 +170,17 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
         whatsappId,
         userId: user.id,
         status: "open",
-      });      
+      });
 
       onClose(ticket);
     } catch (err) {
-      
-      const ticket  = JSON.parse(err.response.data.error);
+
+      const ticket = JSON.parse(err.response.data.error);
 
       if (ticket.userId !== user?.id) {
         setOpenAlert(true);
-        setUserTicketOpen(ticket.user.name);
-        setQueueTicketOpen(ticket.queue.name);
+        setUserTicketOpen(ticket?.user?.name);
+        setQueueTicketOpen(ticket?.queue?.name);
       } else {
         setOpenAlert(false);
         setUserTicketOpen("");
@@ -177,7 +188,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
         setLoading(false);
         onClose(ticket);
       }
-    }  
+    }
     setLoading(false);
   };
 
@@ -191,11 +202,11 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
   };
 
   const handleCloseContactModal = () => {
-    setContactModalOpen(false);    
+    setContactModalOpen(false);
   };
 
   const handleAddNewContactTicket = contact => {
-    handleSaveTicket(contact.id);
+    setSelectedContact(contact);
   };
 
   const createAddContactOption = (filterOptions, params) => {
@@ -211,7 +222,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
   const renderOption = option => {
     if (option.number) {
       return <>
-        {/* {IconChannel(option.channel)} */}
+        {IconChannel(option.channel)}
         <Typography component="span" style={{ fontSize: 14, marginLeft: "10px", display: "inline-flex", alignItems: "center", lineHeight: "2" }}>
           {option.name} - {option.number}
         </Typography>
@@ -244,7 +255,10 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
             getOptionLabel={renderOptionLabel}
             renderOption={renderOption}
             filterOptions={createAddContactOption}
-            onChange={(e, newValue) => handleSelectOption(e, newValue)}
+            onChange={(e, newValue) => {                     
+              setChannelFilter(newValue ? newValue.channel : "whatsapp");
+              handleSelectOption(e, newValue)
+            }}
             renderInput={params => (
               <TextField
                 {...params}
@@ -280,12 +294,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
 
   return (
     <>
-      <ContactModal
-        open={contactModalOpen}
-        initialValues={newContact}
-        onClose={handleCloseContactModal}
-        onSave={handleAddNewContactTicket}
-      ></ContactModal>
+
       <Dialog open={modalOpen} onClose={handleClose}>
         <DialogTitle id="form-dialog-title">
           {i18n.t("newTicketModal.title")}
@@ -360,7 +369,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
                     return "Selecione uma Conexão"
                   }
                   const whatsapp = whatsapps.find(w => w.id === selectedWhatsapp)
-                  return whatsapp.name
+                  return whatsapp?.name
                 }}
               >
                 {whatsapps?.length > 0 &&
@@ -369,7 +378,7 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
                       <ListItemText
                         primary={
                           <>
-                            {/* {IconChannel(whatsapp.channel)} */}
+                            {IconChannel(whatsapp.channel)}
                             <Typography component="span" style={{ fontSize: 14, marginLeft: "10px", display: "inline-flex", alignItems: "center", lineHeight: "2" }}>
                               {whatsapp.name} &nbsp; <p className={(whatsapp.status) === 'CONNECTED' ? classes.online : classes.offline} >({whatsapp.status})</p>
                             </Typography>
@@ -402,12 +411,22 @@ const NewTicketModal = ({ modalOpen, onClose, initialContact }) => {
             {i18n.t("newTicketModal.buttons.ok")}
           </ButtonWithSpinner>
         </DialogActions>
-        {/* <ShowTicketOpen
-          isOpen={openAlert}
-          handleClose={handleCloseAlert}
-          user={userTicketOpen}
-          queue={queueTicketOpen}
-			  /> */}
+        {contactModalOpen && (
+          <ContactModal
+            open={contactModalOpen}
+            initialValues={newContact}
+            onClose={handleCloseContactModal}
+            onSave={handleAddNewContactTicket}
+          ></ContactModal>
+        )}
+        {openAlert && (
+          <ShowTicketOpen
+            isOpen={openAlert}
+            handleClose={handleCloseAlert}
+            user={userTicketOpen}
+            queue={queueTicketOpen}
+          />
+        )}
       </Dialog >
     </>
   );

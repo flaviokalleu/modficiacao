@@ -1,33 +1,35 @@
+import AppError from "../../errors/AppError";
 import GetDefaultWhatsApp from "../../helpers/GetDefaultWhatsApp";
 import { getWbot } from "../../libs/wbot";
-import { logger } from "../../utils/logger";
-
-interface IOnWhatsapp {
-  jid: string;
-  exists: boolean;
-}
-
-const checker = async (number: string, wbot: any) => {
-  const [validNumber] = await wbot.onWhatsApp(`${number}@s.whatsapp.net`);
-
-  logger.info(validNumber);
-
-  return validNumber;
-};
 
 const CheckContactNumber = async (
-  number: string,
-  companyId: number
-): Promise<IOnWhatsapp> => {
-  const defaultWhatsapp = await GetDefaultWhatsApp(companyId);
+  number: string, companyId: number, isGroup: boolean = false
+): Promise<string> => {
+  const wahtsappList = await GetDefaultWhatsApp(null, companyId);
 
-  const wbot = getWbot(defaultWhatsapp.id);
-  const isNumberExit = await checker(number, wbot);
+  const wbot = getWbot(wahtsappList.id);
 
-  if (!isNumberExit.exists) {
-    throw new Error("ERR_CHECK_NUMBER");
+  let numberArray;
+
+  if (isGroup) {
+    const grupoMeta = await wbot.groupMetadata(number);
+    numberArray = [
+      {
+        jid: grupoMeta.id,
+        exists: true
+      }
+    ]; 
+  } else {
+    numberArray = await wbot.onWhatsApp(`${number}@s.whatsapp.net`);
   }
-  return isNumberExit;
+
+  const isNumberExit = numberArray;
+
+  if (!isNumberExit[0]?.exists) {
+    throw new AppError("Este número não está cadastrado no whatsapp");
+  }
+
+  return isGroup ? number.split("@")[0] : isNumberExit[0].jid.split("@")[0];
 };
 
 export default CheckContactNumber;

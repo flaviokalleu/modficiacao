@@ -1,8 +1,7 @@
 class FormatMask {
   setPhoneFormatMask(phoneToFormat) {
-
     if(!phoneToFormat || phoneToFormat.length < 12){
-      return;
+      return phoneToFormat;
     }
 
     const number = ("" + phoneToFormat).replace(/\D/g, "");
@@ -31,6 +30,8 @@ class FormatMask {
         "-" +
         phoneNumberFormatted[4]
       );
+    } else {
+      return phoneToFormat;
     }
 
     return null;
@@ -43,9 +44,9 @@ class FormatMask {
 
   maskPhonePattern(phoneNumber){
     if(phoneNumber.length < 13){
-      return '+55 (99) 9999 9999';
+      return '🇧🇷 (99) 9999 9999';
     }else{
-      return '+55 (99) 99999 9999';
+      return '🇧🇷 (99) 99999 9999';
     }
   }
 }

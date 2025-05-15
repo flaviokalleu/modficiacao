@@ -13,6 +13,7 @@ import {
 } from "@material-ui/core";
 
 import Title from "./Title";
+import { i18n } from "../../translate/i18n";
 
 const Filters = ({
     classes,
@@ -22,6 +23,7 @@ const Filters = ({
     dateEndTicket,
     setQueueTicket,
     queueTicket,
+    fetchData
 }) => {
     // const { user } = useContext(AuthContext);
 
@@ -31,6 +33,7 @@ const Filters = ({
     ] = React.useState(queueTicket);
     const [dateStart, setDateStart] = React.useState(dateStartTicket);
     const [dateEnd, setDateEnd] = React.useState(dateEndTicket);
+    const [fetchDataFilter, setFetchDataFilter] = React.useState(false)
 
     return (
         <Grid item xs={12}>
@@ -65,7 +68,7 @@ const Filters = ({
                         <TextField
                             fullWidth
                             name="dateStart"
-                            label="De"
+                            label={i18n.t("dashboard.date.initialDate")}
                             InputLabelProps={{
                                 shrink: true,
                             }}
@@ -78,7 +81,7 @@ const Filters = ({
                         <TextField
                             fullWidth
                             name="dateEnd"
-                            label="Até"
+                            label={i18n.t("dashboard.date.finalDate")}
                             InputLabelProps={{
                                 shrink: true,
                             }}
@@ -96,6 +99,8 @@ const Filters = ({
                                 setQueueTicket(queues);
                                 setDateStartTicket(dateStart);
                                 setDateEndTicket(dateEnd);
+                                setFetchDataFilter(!fetchDataFilter)
+                                fetchData(!fetchDataFilter);
                             }}
                         >
                             Filtrar

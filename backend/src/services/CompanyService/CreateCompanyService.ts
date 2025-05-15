@@ -1,19 +1,22 @@
 import * as Yup from "yup";
 import AppError from "../../errors/AppError";
 import Company from "../../models/Company";
-import Setting from "../../models/Setting";
 import User from "../../models/User";
+import sequelize from "../../database";
+import CompaniesSettings from "../../models/CompaniesSettings";
 
 interface CompanyData {
   name: string;
   phone?: string;
   email?: string;
-  password?: string;
   status?: boolean;
   planId?: number;
-  campaignsEnabled?: boolean;
   dueDate?: string;
   recurrence?: string;
+  document?: string;
+  paymentMethod?: string;
+  password?: string;
+  companyUserName?: string;
 }
 
 const CreateCompanyService = async (
@@ -22,33 +25,21 @@ const CreateCompanyService = async (
   const {
     name,
     phone,
+    password,
     email,
     status,
     planId,
-    password,
-    campaignsEnabled,
     dueDate,
-    recurrence
+    recurrence,
+    document,
+    paymentMethod,
+    companyUserName
   } = companyData;
 
   const companySchema = Yup.object().shape({
     name: Yup.string()
       .min(2, "ERR_COMPANY_INVALID_NAME")
       .required("ERR_COMPANY_INVALID_NAME")
-      .test(
-        "Check-unique-name",
-        "ERR_COMPANY_NAME_ALREADY_EXISTS",
-        async value => {
-          if (value) {
-            const companyWithSameName = await Company.findOne({
-              where: { name: value }
-            });
-
-            return !companyWithSameName;
-          }
-          return false;
-        }
-      )
   });
 
   try {
@@ -57,249 +48,69 @@ const CreateCompanyService = async (
     throw new AppError(err.message);
   }
 
-  const company = await Company.create({
-    name,
-    phone,
-    email,
-    status,
-    planId,
-    dueDate,
-    recurrence
-  });
+  const t = await sequelize.transaction();
 
-  const user = await User.create({
-    name: company.name,
-    email: company.email,
-    password: password || "mudar123",
-    profile: "admin",
-    companyId: company.id
-  });
+  try {
+    const company = await Company.create({
+      name,
+      phone,
+      email,
+      status,
+      planId,
+      dueDate,
+      recurrence,
+      document,
+      paymentMethod
+    },
+      { transaction: t }
+    );
 
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "asaas"
+    const user = await User.create({
+      name: companyUserName ? companyUserName : name,
+      email: company.email,
+      password: password ? password : "mudar123",
+      profile: "admin",
+      companyId: company.id
     },
-    defaults: {
-      companyId: company.id,
-      key: "asaas",
-      value: ""
-    },
-  });
+      { transaction: t }
+    );
 
-  //tokenixc
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "tokenixc"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "tokenixc",
-      value: ""
-    },
-  });
+    const settings = await CompaniesSettings.create({
+          companyId: company.id,
+          hoursCloseTicketsAuto: "9999999999",
+          chatBotType: "text",
+          acceptCallWhatsapp: "enabled",
+          userRandom: "enabled",
+          sendGreetingMessageOneQueues: "enabled",
+          sendSignMessage: "enabled",
+          sendFarewellWaitingTicket: "disabled",
+          userRating: "disabled",
+          sendGreetingAccepted: "enabled",
+          CheckMsgIsGroup: "enabled",
+          sendQueuePosition: "disabled",
+          scheduleType: "disabled",
+          acceptAudioMessageContact: "enabled",
+          sendMsgTransfTicket:"disabled",
+          enableLGPD: "disabled",
+          requiredTag: "disabled",
+          lgpdDeleteMessage: "disabled",
+          lgpdHideNumber: "disabled",
+          lgpdConsent: "disabled",
+          lgpdLink:"",
+          lgpdMessage:"",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          closeTicketOnTransfer: false,
+          DirectTicketsToWallets: false
+    },{ transaction: t })
+    
+    await t.commit();
 
-  //ipixc
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "ipixc"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "ipixc",
-      value: ""
-    },
-  });
-
-  //ipmkauth
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "ipmkauth"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "ipmkauth",
-      value: ""
-    },
-  });
-
-  //clientsecretmkauth
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "clientsecretmkauth"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "clientsecretmkauth",
-      value: ""
-    },
-  });
-
-  //clientidmkauth
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "clientidmkauth"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "clientidmkauth",
-      value: ""
-    },
-  });
-
-  //CheckMsgIsGroup
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "CheckMsgIsGroup"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "enabled",
-      value: ""
-    },
-  });
-
-  //CheckMsgIsGroup
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: ""
-    },
-    defaults: {
-      companyId: company.id,
-      key: "call",
-      value: "disabled"
-    },
-  });
-
-  //scheduleType
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "scheduleType"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "scheduleType",
-      value: "disabled"
-    },
-  });
-
-
- // Enviar mensagem ao aceitar ticket
-    await Setting.findOrCreate({
-	where:{
-      companyId: company.id,
-      key: "sendGreetingAccepted",
-    },
-    defaults: {
-      companyId: company.id,
-      key: "sendGreetingAccepted",
-      value: "disabled"
-    },
-  });
-  
- // Enviar mensagem de transferencia
-    await Setting.findOrCreate({
-	where:{
-      companyId: company.id,
-      key: "sendMsgTransfTicket",
-    },
-    defaults: {
-      companyId: company.id,
-      key: "sendMsgTransfTicket",
-      value: "disabled"
-    },
- });
-
-  //userRating
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "userRating"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "userRating",
-      value: "disabled"
-    },
-  });
-
-  //userRating
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "chatBotType"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "chatBotType",
-      value: "text"
-    },
-
-  });
-
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "tokensgp"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "tokensgp",
-      value: ""
-    },
-  });
-
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "ipsgp"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "ipsgp",
-      value: ""
-    },
-  });
-
-  await Setting.findOrCreate({
-    where: {
-      companyId: company.id,
-      key: "appsgp"
-    },
-    defaults: {
-      companyId: company.id,
-      key: "appsgp",
-      value: ""
-    },
-  });
-
-  if (companyData.campaignsEnabled !== undefined) {
-    const [setting, created] = await Setting.findOrCreate({
-      where: {
-        companyId: company.id,
-        key: "campaignsEnabled"
-      },
-      defaults: {
-        companyId: company.id,
-        key: "campaignsEnabled",
-        value: `${campaignsEnabled}`
-      },
-
-    });
-    if (!created) {
-      await setting.update({ value: `${campaignsEnabled}` });
-    }
+    return company;
+  } catch (error) {
+    await t.rollback();
+    throw new AppError("Não foi possível criar a empresa!", error);
   }
-
-  return company;
 };
 
 export default CreateCompanyService;

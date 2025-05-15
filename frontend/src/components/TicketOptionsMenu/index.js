@@ -1,7 +1,9 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
+import { useHistory } from "react-router-dom";
 
 import MenuItem from "@material-ui/core/MenuItem";
 import Menu from "@material-ui/core/Menu";
+import Switch from "@material-ui/core/Switch";
 
 import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
@@ -10,7 +12,6 @@ import TransferTicketModalCustom from "../TransferTicketModalCustom";
 import toastError from "../../errors/toastError";
 import { Can } from "../Can";
 import { AuthContext } from "../../context/Auth/AuthContext";
-
 import ScheduleModal from "../ScheduleModal";
 
 const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
@@ -18,9 +19,11 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 	const [transferTicketModalOpen, setTransferTicketModalOpen] = useState(false);
 	const isMounted = useRef(true);
 	const { user } = useContext(AuthContext);
-
+	const history = useHistory();
 	const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 	const [contactId, setContactId] = useState(null);
+	const [loading, setLoading] = useState(false);
+	const [acceptAudioMessage, setAcceptAudio] = useState(ticket.contact.acceptAudioMessage);
 
 	useEffect(() => {
 		return () => {
@@ -49,6 +52,35 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 	const handleCloseTransferTicketModal = () => {
 		if (isMounted.current) {
 			setTransferTicketModalOpen(false);
+		}
+	};
+
+	const handleCloseTicketWithoutFarewellMsg = async () => {
+		setLoading(true);
+		try {
+			await api.put(`/tickets/${ticket.id}`, {
+				status: "closed",
+				userId: user?.id || null,
+				sendFarewellMessage: false,
+			});
+
+			setLoading(false);
+
+			history.push("/tickets");
+		} catch (err) {
+			setLoading(false);
+			toastError(err);
+		}
+	};
+
+	const handleContactToggleAcceptAudio = async () => {
+		try {
+			const contact = await api.put(
+				`/contacts/toggleAcceptAudio/${ticket.contact.id}`
+			);
+			setAcceptAudio(contact.data.acceptAudioMessage);
+		} catch (err) {
+			toastError(err);
 		}
 	};
 
@@ -81,11 +113,24 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 				open={menuOpen}
 				onClose={handleClose}
 			>
+				<MenuItem onClick={handleCloseTicketWithoutFarewellMsg}>
+					{i18n.t("ticketOptionsMenu.resolveWithNoFarewell")}
+				</MenuItem>
 				<MenuItem onClick={handleOpenScheduleModal}>
 					{i18n.t("ticketOptionsMenu.schedule")}
 				</MenuItem>
 				<MenuItem onClick={handleOpenTransferModal}>
 					{i18n.t("ticketOptionsMenu.transfer")}
+				</MenuItem>
+				<MenuItem>
+					<Switch
+						size="small"
+						checked={acceptAudioMessage}
+						onChange={() => handleContactToggleAcceptAudio()}
+						name="acceptAudioMessage"
+						color="primary"
+					/>
+					{i18n.t("ticketOptionsMenu.acceptAudioMessage")}
 				</MenuItem>
 				<Can
 					role={user.profile}
@@ -98,11 +143,8 @@ const TicketOptionsMenu = ({ ticket, menuOpen, handleClose, anchorEl }) => {
 				/>
 			</Menu>
 			<ConfirmationModal
-				title={`${i18n.t("ticketOptionsMenu.confirmationModal.title")}${
-					ticket.id
-				} ${i18n.t("ticketOptionsMenu.confirmationModal.titleFrom")} ${
-					ticket.contact.name
-				}?`}
+				title={`${i18n.t("ticketOptionsMenu.confirmationModal.title")} ${ticket.contact.name
+					}?`}
 				open={confirmationOpen}
 				onClose={setConfirmationOpen}
 				onConfirm={handleDeleteTicket}

@@ -9,8 +9,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-	"types": ["node"]
+    "forceConsistentCasingInFileNames": true
   },
-    "exclude": ["public"]
+  "exclude": ["public"]
 }

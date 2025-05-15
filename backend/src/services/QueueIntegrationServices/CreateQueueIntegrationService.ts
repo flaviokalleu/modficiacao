@@ -35,7 +35,7 @@ const CreateQueueIntegrationService = async ({
   typebotUnknownMessage,
   typebotDelayMessage,
   typebotKeywordRestart,
-  typebotRestartMessage
+  typebotRestartMessage 
 }: Request): Promise<QueueIntegrations> => {
   const schema = Yup.object().shape({
     name: Yup.string()
@@ -76,7 +76,7 @@ const CreateQueueIntegrationService = async ({
       typebotUnknownMessage,
       typebotDelayMessage,
       typebotKeywordRestart,
-      typebotRestartMessage
+      typebotRestartMessage 
     }
   );
 

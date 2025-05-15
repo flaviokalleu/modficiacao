@@ -14,7 +14,7 @@ import {
   People as PeopleIcon,
 } from "@material-ui/icons";
 
-import TableRowSkeleton from "../../components/TableRowSkeleton";
+import TableRowSkeleton from "../TableRowSkeleton";
 
 function ContactListsTable(props) {
   const {

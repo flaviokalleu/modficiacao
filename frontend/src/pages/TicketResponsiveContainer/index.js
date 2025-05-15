@@ -5,7 +5,7 @@ import Tickets from "../TicketsCustom"
 import TicketAdvanced from "../TicketsAdvanced";
 
 function TicketResponsiveContainer (props) {
-    if (isWidthUp('md', props.width)) {
+     if (isWidthUp('md', props.width)) {
         return <Tickets />;    
     }
     return <TicketAdvanced />

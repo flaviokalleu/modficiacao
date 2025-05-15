@@ -1,82 +1,101 @@
-import Redis from "ioredis";
-import { REDIS_URI_CONNECTION } from "../config/redis";
 import util from "util";
-import * as crypto from "crypto";
+import Redis from "ioredis";
+import hmacSHA512 from "crypto-js/hmac-sha512";
+import Base64 from "crypto-js/enc-base64";
+import { REDIS_URI_CONNECTION } from "../config/redis";
 
-const redis = new Redis(REDIS_URI_CONNECTION);
+class CacheSingleton {
+  private redis: Redis;
 
-function encryptParams(params: any) {
-  const str = JSON.stringify(params);
-  return crypto.createHash("sha256").update(str).digest("base64");
-}
+  private keys: (pattern: string) => Promise<string[]>;
 
-export function setFromParams(
-  key: string,
-  params: any,
-  value: string,
-  option?: string,
-  optionValue?: string | number
-) {
-  const finalKey = `${key}:${encryptParams(params)}`;
-  if (option !== undefined && optionValue !== undefined) {
-    return set(finalKey, value, option, optionValue);
-  }
-  return set(finalKey, value);
-}
+  private static instance: CacheSingleton;
 
-export function getFromParams(key: string, params: any) {
-  const finalKey = `${key}:${encryptParams(params)}`;
-  return get(finalKey);
-}
+  private constructor(redisInstance: Redis) {
+    this.redis = redisInstance;
 
-export function delFromParams(key: string, params: any) {
-  const finalKey = `${key}:${encryptParams(params)}`;
-  return del(finalKey);
-}
-
-export function set(
-  key: string,
-  value: string,
-  option?: string,
-  optionValue?: string | number
-) {
-  const setPromisefy = util.promisify(redis.set).bind(redis);
-  if (option !== undefined && optionValue !== undefined) {
-    return setPromisefy(key, value, option, optionValue);
+    this.set = util.promisify(this.redis.set).bind(this.redis);
+    this.get = util.promisify(this.redis.get).bind(this.redis);
+    this.keys = util.promisify(this.redis.keys).bind(this.redis);
+    this.del = util.promisify(this.redis.del).bind(this.redis);
   }
 
-  return setPromisefy(key, value);
-}
+  public static getInstance(redisInstance: Redis): CacheSingleton {
+    if (!CacheSingleton.instance) {
+      CacheSingleton.instance = new CacheSingleton(redisInstance);
+    }
+    return CacheSingleton.instance;
+  }
 
-export function get(key: string) {
-  const getPromisefy = util.promisify(redis.get).bind(redis);
-  return getPromisefy(key);
-}
+  private static encryptParams(params: any) {
+    const str = JSON.stringify(params);
+    const key = Base64.stringify(hmacSHA512(params, str));
+    return key;
+  }
 
-export function getKeys(pattern: string) {
-  const getKeysPromisefy = util.promisify(redis.keys).bind(redis);
-  return getKeysPromisefy(pattern);
-}
+  public async set(
+    key: string,
+    value: string,
+    option?: string,
+    optionValue?: string | number
+  ): Promise<string> {
+    const setPromisefy = util.promisify(this.redis.set).bind(this.redis);
+    if (option !== undefined && optionValue !== undefined) {
+      return setPromisefy(key, value, option, optionValue);
+    }
 
-export function del(key: string) {
-  const delPromisefy = util.promisify(redis.del).bind(redis);
-  return delPromisefy(key);
-}
+    return setPromisefy(key, value);
+  }
 
-export async function delFromPattern(pattern: string) {
-  const all = await getKeys(pattern);
-  for (let item of all) {
-    del(item);
+  public async get(key: string): Promise<string | null> {
+    const getPromisefy = util.promisify(this.redis.get).bind(this.redis);
+    return getPromisefy(key);
+  }
+
+  public async getKeys(pattern: string): Promise<string[]> {
+    const getKeysPromisefy = util.promisify(this.redis.keys).bind(this.redis);
+    return getKeysPromisefy(pattern);
+  }
+
+  public async del(key: string): Promise<number> {
+    const delPromisefy = util.promisify(this.redis.del).bind(this.redis);
+    return delPromisefy(key);
+  }
+
+  public async delFromPattern(pattern: string): Promise<void> {
+    const all = await this.getKeys(pattern);
+    await Promise.all(all.map(item => this.del(item)));
+  }
+
+  public async setFromParams(
+    key: string,
+    params: any,
+    value: string,
+    option?: string,
+    optionValue?: string | number
+  ): Promise<string> {
+    const finalKey = `${key}:${CacheSingleton.encryptParams(params)}`;
+    if (option !== undefined && optionValue !== undefined) {
+      return this.set(finalKey, value, option, optionValue);
+    }
+    return this.set(finalKey, value);
+  }
+
+  public async getFromParams(key: string, params: any): Promise<string | null> {
+    const finalKey = `${key}:${CacheSingleton.encryptParams(params)}`;
+    return this.get(finalKey);
+  }
+
+  public async delFromParams(key: string, params: any): Promise<number> {
+    const finalKey = `${key}:${CacheSingleton.encryptParams(params)}`;
+    return this.del(finalKey);
+  }
+
+  public getRedisInstance(): Redis {
+    return this.redis;
   }
 }
 
-export const cacheLayer = {
-  set,
-  setFromParams,
-  get,
-  getFromParams,
-  getKeys,
-  del,
-  delFromParams,
-  delFromPattern
-};
+const redisInstance = new Redis(REDIS_URI_CONNECTION);
+
+export default CacheSingleton.getInstance(redisInstance);

@@ -80,7 +80,6 @@ const MessageOptionsMenu = ({ message, menuOpen, handleClose, anchorEl }) => {
 	
 	const closeReactionsMenu = () => {
 		setReactionAnchorEl(null);
-		handleClose();
 	};
 
 	const openMoreReactionsMenu = (event) => {
@@ -92,15 +91,21 @@ const MessageOptionsMenu = ({ message, menuOpen, handleClose, anchorEl }) => {
 		setMoreAnchorEl(null);
 	};
 
+	const closeAllMenus = () => {
+		handleClose();
+		closeReactionsMenu();
+		closeMoreReactionsMenu();
+	};
+
 	const handleReactToMessage = async (reactionType) => {
 		try {
 			await api.post(`/messages/${message.id}/reactions`, { type: reactionType });
-			toast.success(i18n.t("messageOptionsMenu.reactionSuccess"));
+			toast.success(i18n.t("Reação Enviada Com sucesso"));
 		} catch (err) {
 			toastError(err);
 		}
-		handleClose();
-		closeMoreReactionsMenu(); // Fechar o menu de reações ao reagir
+		// Fechar todos os menus após enviar a reação
+		closeAllMenus();
 	};
 
 	// Array de emojis

@@ -13,6 +13,7 @@ export default function ReviewOrder() {
       </Typography>
       <Grid container spacing={2}>
         <ShippingDetails formValues={formValues} />
+        <PaymentDetails formValues={formValues} />
       </Grid>
     </React.Fragment>
   );

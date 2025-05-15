@@ -15,13 +15,13 @@ import { i18n } from "../../translate/i18n";
 import api from "../../services/api";
 import ButtonWithSpinner from "../ButtonWithSpinner";
 import ContactModal from "../ContactModal";
-import toastError from "../../errors/toastError";
+import toastError from "../../errors/toastError"; 
 import { AuthContext } from "../../context/Auth/AuthContext";
-
-import { FormControlLabel, Switch, Typography } from "@material-ui/core";
+import { Typography } from "@mui/material";
+import { FormControlLabel, Switch } from "@material-ui/core";
 
 const ForwardMessageModal = ({ messages, onClose, modalOpen }) => {
-	const [optionsContacts, setOptionsContacts] = useState([]);
+    const [optionsContacts, setOptionsContacts] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const [searchParam, setSearchParam] = useState("");
 	const [selectedContact, setSelectedContact] = useState(null);
@@ -32,7 +32,7 @@ const ForwardMessageModal = ({ messages, onClose, modalOpen }) => {
 	const [messageSending, setMessageSending] = useState('');
 	const [signMessage, setSignMessage] = useState(true);
 
-	useEffect(() => {
+    useEffect(() => {
 		if (!modalOpen || searchParam.length < 3) {
 			setLoading(false);
 			return;
@@ -44,6 +44,7 @@ const ForwardMessageModal = ({ messages, onClose, modalOpen }) => {
 					const { data } = await api.get("contacts", {
 						params: { searchParam },
 					});
+					console.log('contacts', data.contacts);
 					setOptionsContacts(data.contacts);
 					setLoading(false);
 				} catch (err) {
@@ -63,25 +64,25 @@ const ForwardMessageModal = ({ messages, onClose, modalOpen }) => {
 		return new Promise(resolve => setTimeout(resolve, ms));
 	};
 
-	const handleForwardMessage = async (contactL) => {
+    const handleForwardMessage = async(contactL) => {
 		const responseList = [];
 		for (const message of messages) {
 			setSending(true);
 			try {
 				setMessageSending(message.id);
-				const response = await api.post('/message/forward', { messageId: message.id, contactId: contactL.id, signMessage: signMessage });
+				const response = await api.post('/message/forward', {messageId: message.id, contactId: contactL.id, signMessage: signMessage});
 				responseList.push(response);
 				sleep(900);
 			} catch (error) {
 				toastError(error);
-			}
+			}		
 		}
 		setSending(false);
-		handleClose();
-		// history.push('/tickets');
-	}
 
-	const handleSelectOption = (e, newValue) => {
+		history.push('/tickets');
+    }
+
+    const handleSelectOption = (e, newValue) => {
 		if (newValue?.number) {
 			setSelectedContact(newValue);
 		} else if (newValue?.name) {
@@ -90,18 +91,18 @@ const ForwardMessageModal = ({ messages, onClose, modalOpen }) => {
 		}
 	};
 
-	const handleClose = () => {
+    const handleClose = () => {
 		onClose();
 		setSearchParam("");
 		setSelectedContact(null);
 		setSending(false);
 	};
 
-	const handleCloseContactModal = () => {
+    const handleCloseContactModal = () => {
 		setContactModalOpen(false);
 	};
 
-	const renderOption = optionL => {
+    const renderOption = optionL => {
 		if (optionL.number) {
 			return `${optionL.name} - ${optionL.number}`;
 		} else {
@@ -133,8 +134,8 @@ const ForwardMessageModal = ({ messages, onClose, modalOpen }) => {
 		return filtered;
 	};
 
-	return (
-		<>
+    return (
+        <>
 			<ContactModal
 				open={contactModalOpen}
 				initialValues={newContact}
@@ -223,7 +224,7 @@ const ForwardMessageModal = ({ messages, onClose, modalOpen }) => {
 				</DialogActions>
 			</Dialog>
 		</>
-	);
+    );
 };
 
 export default ForwardMessageModal;

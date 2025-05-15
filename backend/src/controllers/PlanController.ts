@@ -1,3 +1,5 @@
+import { verify } from "jsonwebtoken";
+import authConfig from "../config/auth";
 import * as Yup from "yup";
 import { Request, Response } from "express";
 // import { getIO } from "../libs/socket";
@@ -8,22 +10,35 @@ import ListPlansService from "../services/PlanService/ListPlansService";
 import CreatePlanService from "../services/PlanService/CreatePlanService";
 import UpdatePlanService from "../services/PlanService/UpdatePlanService";
 import ShowPlanService from "../services/PlanService/ShowPlanService";
-import FindAllPlanServiceRegister from "../services/PlanService/FindAllPlanServiceRegister";
 import FindAllPlanService from "../services/PlanService/FindAllPlanService";
 import DeletePlanService from "../services/PlanService/DeletePlanService";
+import User from "../models/User";
+import Company from "../models/Company";
+
+interface TokenPayload {
+  id: string;
+  username: string;
+  profile: string;
+  companyId: number;
+  iat: number;
+  exp: number;
+}
 
 type IndexQuery = {
   searchParam: string;
   pageNumber: string;
+  listPublic: string;
 };
 
 type StorePlanData = {
   name: string;
-  id?: number | string;
   users: number | 0;
   connections: number | 0;
   queues: number | 0;
-  value: number;
+  amount: string | "0";
+  useWhatsapp?: boolean;
+  useFacebook?: boolean;
+  useInstagram?: boolean;
   useCampaigns?: boolean;
   useSchedules?: boolean;
   useInternalChat?: boolean;
@@ -31,7 +46,7 @@ type StorePlanData = {
   useKanban?: boolean;
   useOpenAi?: boolean;
   useIntegrations?: boolean;
-  useInternal?: boolean;
+  isPublic?: boolean;
 };
 
 type UpdatePlanData = {
@@ -40,7 +55,10 @@ type UpdatePlanData = {
   users?: number;
   connections?: number;
   queues?: number;
-  value?: number;
+  amount?: string;
+  useWhatsapp?: boolean;
+  useFacebook?: boolean;
+  useInstagram?: boolean;
   useCampaigns?: boolean;
   useSchedules?: boolean;
   useInternalChat?: boolean;
@@ -48,32 +66,49 @@ type UpdatePlanData = {
   useKanban?: boolean;
   useOpenAi?: boolean;
   useIntegrations?: boolean;
-  useInternal?: boolean;
+  isPublic?: boolean;
 };
 
 export const index = async (req: Request, res: Response): Promise<Response> => {
-  const { searchParam, pageNumber } = req.query as IndexQuery;
+  const { searchParam, pageNumber, listPublic } = req.query as IndexQuery;
 
-  const { plans, count, hasMore } = await ListPlansService({
-    searchParam,
-    pageNumber
-  });
+  const authHeader = req.headers.authorization;
+  const [, token] = authHeader.split(" ");
+  const decoded = verify(token, authConfig.secret);
+  const { id: requestUserId, profile, companyId } = decoded as TokenPayload;
+  const requestUser = await User.findByPk(requestUserId);
+  const company = await Company.findByPk(companyId);
+  const PlanCompany = company.planId;
+  const plans = await Plan.findByPk(PlanCompany);
+  const plansName = plans.name;
 
-  return res.json({ plans, count, hasMore });
+  if (requestUser.super === true) {
+    const { plans, count, hasMore } = await ListPlansService({
+      searchParam,
+      pageNumber
+    });
+
+    return res.json({ plans, count, hasMore });
+
+  } else {
+    const { plans, count, hasMore } = await ListPlansService({
+      searchParam: plansName,
+      pageNumber,
+      listPublic
+    });
+    return res.json({ plans, count, hasMore });
+
+  }
+
 };
 
 export const list = async (req: Request, res: Response): Promise<Response> => {
-  const plans: Plan[] = await FindAllPlanService();
+  const {listPublic} = req.query as IndexQuery;
+
+  const plans: Plan[] = await FindAllPlanService(listPublic);
 
   return res.status(200).json(plans);
 };
-
-export const register = async (req: Request, res: Response): Promise<Response> => {
-    const plans: Plan[] = await FindAllPlanServiceRegister();
-  
-    return res.status(200).json(plans);
-  };
-  
 
 export const store = async (req: Request, res: Response): Promise<Response> => {
   const newPlan: StorePlanData = req.body;
@@ -91,7 +126,8 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   const plan = await CreatePlanService(newPlan);
 
   // const io = getIO();
-  // io.emit("plan", {
+  // io.of(companyId.toString())
+  // .emit("plan", {
   //   action: "create",
   //   plan
   // });
@@ -102,9 +138,24 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
 export const show = async (req: Request, res: Response): Promise<Response> => {
   const { id } = req.params;
 
-  const plan = await ShowPlanService(id);
+  const authHeader = req.headers.authorization;
+  const [, token] = authHeader.split(" ");
+  const decoded = verify(token, authConfig.secret);
+  const { id: requestUserId, profile, companyId } = decoded as TokenPayload;
+  const requestUser = await User.findByPk(requestUserId);
+  const company = await Company.findByPk(companyId);
+  const PlanCompany = company.planId;
 
-  return res.status(200).json(plan);
+  if (requestUser.super === true) {
+    const plan = await ShowPlanService(id);
+    return res.status(200).json(plan);
+  } else if (id !== PlanCompany.toString()) {
+    return res.status(400).json({ error: "Você não possui permissão para acessar este recurso!" });
+  } else if (id === PlanCompany.toString()) {
+    const plan = await ShowPlanService(id);
+    return res.status(200).json(plan);
+  }
+
 };
 
 export const update = async (
@@ -123,15 +174,63 @@ export const update = async (
     throw new AppError(err.message);
   }
 
-  const plan = await UpdatePlanService(planData);
+  const { id,
+    //   name,
+    //   users,
+    //   connections,
+    //   queues,
+    //   amount,
+    //   useWhatsapp,
+    //   useFacebook,
+    //   useInstagram,
+    //   useCampaigns,
+    //   useSchedules,
+    //   useInternalChat,
+    //   useExternalApi,
+    //   useKanban,
+    //   useOpenAi,
+    //   useIntegrations
+  } = planData;
+  const authHeader = req.headers.authorization;
+  const [, token] = authHeader.split(" ");
+  const decoded = verify(token, authConfig.secret);
+  const { id: requestUserId, profile, companyId } = decoded as TokenPayload;
+  const requestUser = await User.findByPk(requestUserId);
+  const company = await Company.findByPk(companyId);
+  const PlanCompany = company.planId;
+
+  if (requestUser.super === true) {
+    const plan = await UpdatePlanService(planData
+      // id,
+      // name,
+      // users,
+      // connections,
+      // queues,
+      // amount,
+      // useWhatsapp,
+      // useFacebook,
+      // useInstagram,
+      // useCampaigns,
+      // useSchedules,
+      // useInternalChat,
+      // useExternalApi,
+      // useKanban,
+      // useOpenAi,
+      // useIntegrations
+    );
+
+    return res.status(200).json(plan);
+  } else if (PlanCompany.toString() !== id) {
+    return res.status(400).json({ error: "Você não possui permissão para acessar este recurso!" });
+  }
 
   // const io = getIO();
-  // io.emit("plan", {
+  // io.of(companyId.toString())
+  // .emit("plan", {
   //   action: "update",
   //   plan
   // });
 
-  return res.status(200).json(plan);
 };
 
 export const remove = async (
@@ -140,7 +239,17 @@ export const remove = async (
 ): Promise<Response> => {
   const { id } = req.params;
 
-  const plan = await DeletePlanService(id);
+  const authHeader = req.headers.authorization;
+  const [, token] = authHeader.split(" ");
+  const decoded = verify(token, authConfig.secret);
+  const { id: requestUserId, profile, companyId } = decoded as TokenPayload;
+  const requestUser = await User.findByPk(requestUserId);
 
-  return res.status(200).json(plan);
+  if (requestUser.super === true) {
+    const plan = await DeletePlanService(id);
+    return res.status(200).json(plan);
+  } else if (companyId.toString() !== id) {
+    return res.status(400).json({ error: "Você não possui permissão para acessar este recurso!" });
+  }
+
 };

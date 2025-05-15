@@ -3,7 +3,7 @@ import XLSX from "xlsx";
 import { has } from "lodash";
 import ContactListItem from "../../models/ContactListItem";
 import CheckContactNumber from "../WbotServices/CheckNumber";
-import { logger } from "../../utils/logger";
+import logger from "../../utils/logger";
 // import CheckContactNumber from "../WbotServices/CheckNumber";
 
 export async function ImportContacts(
@@ -65,8 +65,8 @@ export async function ImportContacts(
     for (let newContact of contactList) {
       try {
         const response = await CheckContactNumber(newContact.number, companyId);
-        newContact.isWhatsappValid = response.exists;
-        const number = response.jid.replace(/\D/g, "");
+        newContact.isWhatsappValid = response ? true : false;
+        const number = response;
         newContact.number = number;
         await newContact.save();
       } catch (e) {

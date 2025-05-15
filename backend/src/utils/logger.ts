@@ -19,4 +19,4 @@ const logger = pino({
   timestamp: () => `,"time":"${timezoned()}"`, // Adiciona o timestamp formatado
 });
 
-export  { logger };
+export default logger;

@@ -56,10 +56,12 @@ export const store = async (req: Request, res: Response): Promise<Response> => {
   const io = getIO();
 
   record.users.forEach(user => {
-    io.to(`user-${user.userId}`).emit(`company-${companyId}-chat-user-${user.userId}`, {
-      action: "create",
-      record
-    });
+    console.log(user.id);
+    io.of(String(companyId))
+      .emit(`company-${companyId}-chat-user-${user.id}`, {
+        action: "create",
+        record
+      });
   });
 
   return res.status(200).json(record);
@@ -81,10 +83,12 @@ export const update = async (
   const io = getIO();
 
   record.users.forEach(user => {
-    io.to(`user-${user.userId}`).emit(`company-${companyId}-chat-user-${user.userId}`, {
-      action: "update",
-      record
-    });
+    io.of(String(companyId))
+      .emit(`company-${companyId}-chat-user-${user.id}`, {
+        action: "update",
+        record,
+        userId: user.userId
+      });
   });
 
   return res.status(200).json(record);
@@ -108,10 +112,11 @@ export const remove = async (
   await DeleteService(id);
 
   const io = getIO();
-  io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-chat`, {
-    action: "delete",
-    id
-  });
+  io.of(String(companyId))
+    .emit(`company-${companyId}-chat`, {
+      action: "delete",
+      id
+    });
 
   return res.status(200).json({ message: "Chat deleted" });
 };
@@ -140,17 +145,19 @@ export const saveMessage = async (
   });
 
   const io = getIO();
-  io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-chat-${chatId}`, {
-    action: "new-message",
-    newMessage,
-    chat
-  });
+  io.of(String(companyId))
+    .emit(`company-${companyId}-chat-${chatId}`, {
+      action: "new-message",
+      newMessage,
+      chat
+    });
 
-  io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-chat`, {
-    action: "new-message",
-    newMessage,
-    chat
-  });
+  io.of(String(companyId))
+    .emit(`company-${companyId}-chat`, {
+      action: "new-message",
+      newMessage,
+      chat
+    });
 
   return res.json(newMessage);
 };
@@ -174,15 +181,17 @@ export const checkAsRead = async (
   });
 
   const io = getIO();
-  io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-chat-${id}`, {
-    action: "update",
-    chat
-  });
+  io.of(String(companyId))
+    .emit(`company-${companyId}-chat-${id}`, {
+      action: "update",
+      chat
+    });
 
-  io.to(`company-${companyId}-mainchannel`).emit(`company-${companyId}-chat`, {
-    action: "update",
-    chat
-  });
+  io.of(String(companyId))
+    .emit(`company-${companyId}-chat`, {
+      action: "update",
+      chat
+    });
 
   return res.json(chat);
 };

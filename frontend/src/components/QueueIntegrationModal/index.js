@@ -5,6 +5,7 @@ import { Formik, Form, Field } from "formik";
 import { toast } from "react-toastify";
 
 import {
+  Typography,
   Button,
   Dialog,
   DialogActions,
@@ -148,8 +149,9 @@ const QueueIntegration = ({ open, onClose, integrationId }) => {
   };
 
   const handleSaveDialogflow = async (values) => {
+
     try {
-      if (values.type === 'n8n' || values.type === 'webhook' || values.type === 'typebot') values.projectName = values.name
+      if (values.type === 'n8n' || values.type === 'webhook' || values.type === 'typebot' || values.type === "flowbuilder") values.projectName = values.name
       if (integrationId) {
         await api.put(`/queueIntegration/${integrationId}`, values);
         toast.success(i18n.t("queueIntegrationModal.messages.editSuccess"));
@@ -161,6 +163,8 @@ const QueueIntegration = ({ open, onClose, integrationId }) => {
     } catch (err) {
       toastError(err);
     }
+
+
   };
 
   return (
@@ -212,6 +216,7 @@ const QueueIntegration = ({ open, onClose, integrationId }) => {
                           <MenuItem value="n8n">N8N</MenuItem>
                           <MenuItem value="webhook">WebHooks</MenuItem>
                           <MenuItem value="typebot">Typebot</MenuItem>
+                          <MenuItem value="flowbuilder">Flowbuilder</MenuItem>
                         </Field>
                       </FormControl>
                     </Grid>
@@ -323,6 +328,23 @@ const QueueIntegration = ({ open, onClose, integrationId }) => {
                           />
                         </Grid>
                       </>
+                    )}
+
+                    {(values.type === "flowbuilder") && (
+                      <Grid item xs={12} md={6} xl={6} >
+                        <Field
+                          as={TextField}
+                          label={i18n.t("queueIntegrationModal.form.name")}
+                          autoFocus
+                          name="name"
+                          fullWidth
+                          error={touched.name && Boolean(errors.name)}
+                          helpertext={touched.name && errors.name}
+                          variant="outlined"
+                          margin="dense"
+                          className={classes.textField}
+                        />
+                      </Grid>
                     )}
                     {(values.type === "typebot") && (
                       <>
@@ -447,7 +469,7 @@ const QueueIntegration = ({ open, onClose, integrationId }) => {
                             className={classes.textField}
                           />
                         </Grid>
-                        
+
                       </>
                     )}
                   </Grid>

@@ -1,9 +1,14 @@
 module.exports = [{
   script: 'dist/server.js',
-  name: 'beta-back',
-  exec_mode: 'fork',
+  name: 'multipremium-back',
+  exec_mode: 'cluster',
+  instances: 'auto',     // Determina automaticamente baseado nas CPUs
   cron_restart: '05 00 * * *',
-  max_memory_restart: '769M', // Configuração para reiniciar quando atingir 769 MB de memória
-  node_args: '--max-old-space-size=769', // Limite de memória do Node.js para 769 MB
-  watch: false
+  autorestart: true,     // Reinicia automaticamente em caso de falhas
+  watch: false,
+  merge_logs: true,
+  log_date_format: 'YYYY-MM-DD HH:mm:ss',
+  env: {
+    NODE_ENV: 'production'
+  }
 }]

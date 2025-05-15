@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useReducer, useContext } from "react";
 import { toast } from "react-toastify";
-
 import { makeStyles } from "@material-ui/core/styles";
 import Paper from "@material-ui/core/Paper";
 import Button from "@material-ui/core/Button";
@@ -13,25 +12,29 @@ import IconButton from "@material-ui/core/IconButton";
 import SearchIcon from "@material-ui/icons/Search";
 import TextField from "@material-ui/core/TextField";
 import InputAdornment from "@material-ui/core/InputAdornment";
-
+import CircularProgress from "@material-ui/core/CircularProgress";
 import DeleteOutlineIcon from "@material-ui/icons/DeleteOutline";
 import EditIcon from "@material-ui/icons/Edit";
-
+import { AccountCircle } from "@material-ui/icons";
 import MainContainer from "../../components/MainContainer";
 import MainHeader from "../../components/MainHeader";
 import MainHeaderButtonsWrapper from "../../components/MainHeaderButtonsWrapper";
 import Title from "../../components/Title";
-import UserStatusIcon from "../../components/UserModal/statusIcon";
-
+import whatsappIcon from '../../assets/nopicture.png'
 import api from "../../services/api";
 import { i18n } from "../../translate/i18n";
 import TableRowSkeleton from "../../components/TableRowSkeleton";
 import UserModal from "../../components/UserModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import toastError from "../../errors/toastError";
-import { SocketContext } from "../../context/Socket/SocketContext";
+import { SocketContext, socketManager } from "../../context/Socket/SocketContext";
+import UserStatusIcon from "../../components/UserModal/statusIcon";
+import { getBackendUrl } from "../../config";
+import { AuthContext } from "../../context/Auth/AuthContext";
+import { Avatar } from "@material-ui/core";
+import ForbiddenPage from "../../components/ForbiddenPage";
 
-
+const backendUrl = getBackendUrl();
 
 const reducer = (state, action) => {
   if (action.type === "LOAD_USERS") {
@@ -80,9 +83,27 @@ const reducer = (state, action) => {
 const useStyles = makeStyles((theme) => ({
   mainPaper: {
     flex: 1,
-    padding: theme.spacing(1),
+    padding: theme.spacing(2),
     overflowY: "scroll",
     ...theme.scrollbarStyles,
+  },
+  userAvatar: {
+    width: theme.spacing(6),
+    height: theme.spacing(6),
+  },
+  avatarDiv: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingContainer: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: theme.spacing(3),
+  },
+  loadingText: {
+    marginLeft: theme.spacing(2),
   },
 }));
 
@@ -90,6 +111,7 @@ const Users = () => {
   const classes = useStyles();
 
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [pageNumber, setPageNumber] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -98,8 +120,8 @@ const Users = () => {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [searchParam, setSearchParam] = useState("");
   const [users, dispatch] = useReducer(reducer, []);
-
-  const socketManager = useContext(SocketContext);
+  const { user: loggedInUser, socket } = useContext(AuthContext)
+  const { profileImage } = loggedInUser;
 
   useEffect(() => {
     dispatch({ type: "RESET" });
@@ -108,42 +130,40 @@ const Users = () => {
 
   useEffect(() => {
     setLoading(true);
-    const delayDebounceFn = setTimeout(() => {
-      const fetchUsers = async () => {
-        try {
-          const { data } = await api.get("/users/", {
-            params: { searchParam, pageNumber },
-          });
-          dispatch({ type: "LOAD_USERS", payload: data.users });
-          setHasMore(data.hasMore);
-          setLoading(false);
-        } catch (err) {
-          toastError(err);
-        }
-      };
-      fetchUsers();
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
+    const fetchUsers = async () => {
+      try {
+        const { data } = await api.get("/users/", {
+          params: { searchParam, pageNumber },
+        });
+        dispatch({ type: "LOAD_USERS", payload: data.users });
+        setHasMore(data.hasMore);
+      } catch (err) {
+        toastError(err);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    };
+    fetchUsers();
   }, [searchParam, pageNumber]);
 
   useEffect(() => {
-    const companyId = localStorage.getItem("companyId");
-    const socket = socketManager.getSocket(companyId);
-
-    socket.on(`company-${companyId}-user`, (data) => {
-      if (data.action === "update" || data.action === "create") {
-        dispatch({ type: "UPDATE_USERS", payload: data.user });
-      }
-
-      if (data.action === "delete") {
-        dispatch({ type: "DELETE_USER", payload: +data.userId });
-      }
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [socketManager]);
+    if (loggedInUser) {
+      const companyId = loggedInUser.companyId;
+      const onCompanyUser = (data) => {
+        if (data.action === "update" || data.action === "create") {
+          dispatch({ type: "UPDATE_USERS", payload: data.user });
+        }
+        if (data.action === "delete") {
+          dispatch({ type: "DELETE_USER", payload: +data.userId });
+        }
+      };
+      socket.on(`company-${companyId}-user`, onCompanyUser);
+      return () => {
+        socket.off(`company-${companyId}-user`, onCompanyUser);
+      };
+    }
+  }, [socket]);
 
   const handleOpenUserModal = () => {
     setSelectedUser(null);
@@ -177,7 +197,8 @@ const Users = () => {
   };
 
   const loadMore = () => {
-    setPageNumber((prevState) => prevState + 1);
+    setLoadingMore(true);
+    setPageNumber((prevPage) => prevPage + 1);
   };
 
   const handleScroll = (e) => {
@@ -188,17 +209,40 @@ const Users = () => {
     }
   };
 
+  const renderProfileImage = (user) => {
+    if (user.id === loggedInUser.id) {
+      return (
+        <Avatar
+          src={`${backendUrl}/public/company${user.companyId}/user/${profileImage ? profileImage : whatsappIcon}`}
+          alt={user.name}
+          className={classes.userAvatar}
+        />
+      )
+    }
+    if (user.id !== loggedInUser.id) {
+      return (
+        <Avatar
+          src={user.profileImage ? `${backendUrl}/public/company${user.companyId}/user/${user.profileImage}` : whatsappIcon}
+          alt={user.name}
+          className={classes.userAvatar}
+        />
+      )
+    }
+    return (
+      <AccountCircle />
+    )
+  };
+
   return (
     <MainContainer>
       <ConfirmationModal
         title={
           deletingUser &&
-          `${i18n.t("users.confirmationModal.deleteTitle")} ${
-            deletingUser.name
+          `${i18n.t("users.confirmationModal.deleteTitle")} ${deletingUser.name
           }?`
         }
         open={confirmModalOpen}
-        onClose={setConfirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
         onConfirm={() => handleDeleteUser(deletingUser.id)}
       >
         {i18n.t("users.confirmationModal.deleteMessage")}
@@ -209,89 +253,111 @@ const Users = () => {
         aria-labelledby="form-dialog-title"
         userId={selectedUser && selectedUser.id}
       />
-      <MainHeader>
-        <Title>{i18n.t("users.title")}</Title>
-        <MainHeaderButtonsWrapper>
-          <TextField
-            placeholder={i18n.t("contacts.searchPlaceholder")}
-            type="search"
-            value={searchParam}
-            onChange={handleSearch}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon style={{ color: "gray" }} />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleOpenUserModal}
+      {loggedInUser.profile === "user" ?
+        <ForbiddenPage />
+        :
+        <>
+          <MainHeader>
+            <Title>{i18n.t("users.title")} ({users.length})</Title>
+            <MainHeaderButtonsWrapper>
+              <TextField
+                placeholder={i18n.t("contacts.searchPlaceholder")}
+                type="search"
+                value={searchParam}
+                onChange={handleSearch}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon style={{ color: "gray" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleOpenUserModal}
+              >
+                {i18n.t("users.buttons.add")}
+              </Button>
+            </MainHeaderButtonsWrapper>
+          </MainHeader>
+          <Paper
+            className={classes.mainPaper}
+            variant="outlined"
+            onScroll={handleScroll}
           >
-            {i18n.t("users.buttons.add")}
-          </Button>
-        </MainHeaderButtonsWrapper>
-      </MainHeader>
-      <Paper
-        className={classes.mainPaper}
-        variant="outlined"
-        onScroll={handleScroll}
-      >
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-			<TableCell align="center">
-                {i18n.t("users.table.id")}
-              </TableCell>
-              <TableCell align="center">{i18n.t("users.table.status")}</TableCell>
-              <TableCell align="center">{i18n.t("users.table.name")}</TableCell>
-              <TableCell align="center">
-                {i18n.t("users.table.email")}
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("users.table.profile")}
-              </TableCell>
-              <TableCell align="center">
-                {i18n.t("users.table.actions")}
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            <>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-				  <TableCell align="center">{user.id}</TableCell>
-				  <TableCell align="center"><UserStatusIcon user={user} /></TableCell>
-                  <TableCell align="center">{user.name}</TableCell>
-                  <TableCell align="center">{user.email}</TableCell>
-                  <TableCell align="center">{user.profile}</TableCell>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell align="center">{i18n.t("users.table.ID")}</TableCell>
+                  <TableCell align="center">{i18n.t("users.table.status")}</TableCell>
                   <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleEditUser(user)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        setConfirmModalOpen(true);
-                        setDeletingUser(user);
-                      }}
-                    >
-                      <DeleteOutlineIcon />
-                    </IconButton>
+                    Avatar
                   </TableCell>
+                  <TableCell align="center">{i18n.t("users.table.name")}</TableCell>
+                  <TableCell align="center">{i18n.t("users.table.email")}</TableCell>
+                  <TableCell align="center">{i18n.t("users.table.profile")}</TableCell>
+                  <TableCell align="center">{i18n.t("users.table.startWork")}</TableCell>
+                  <TableCell align="center">{i18n.t("users.table.endWork")}</TableCell>
+                  <TableCell align="center">{i18n.t("users.table.actions")}</TableCell>
                 </TableRow>
-              ))}
-              {loading && <TableRowSkeleton columns={4} />}
-            </>
-          </TableBody>
-        </Table>
-      </Paper>
+              </TableHead>
+              <TableBody>
+                <>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell align="center">{user.id}</TableCell>
+                      <TableCell align="center"><UserStatusIcon user={user} /></TableCell>
+                      <TableCell align="center" >
+                        <div className={classes.avatarDiv}>
+                          {renderProfileImage(user)}
+                        </div>
+                      </TableCell>
+                      <TableCell align="center">{user.name}</TableCell>
+                      <TableCell align="center">{user.email}</TableCell>
+                      <TableCell align="center">{user.profile}</TableCell>
+                      <TableCell align="center">{user.startWork}</TableCell>
+                      <TableCell align="center">{user.endWork}</TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditUser(user)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            setConfirmModalOpen(true);
+                            setDeletingUser(user);
+                          }}
+                        >
+                          <DeleteOutlineIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {loadingMore && (
+                    <TableRow>
+                      <TableCell colSpan={9} align="center">
+                        <CircularProgress />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              </TableBody>
+            </Table>
+            {loading && !loadingMore && (
+              <div className={classes.loadingContainer}>
+                <CircularProgress />
+                <span className={classes.loadingText}>{i18n.t("loading")}</span>
+              </div>
+            )}
+          </Paper>
+        </>
+      }
     </MainContainer>
   );
 };

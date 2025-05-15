@@ -24,7 +24,7 @@ const FindOrCreateATicketTrakingService = async ({
   });
 
   if (ticketTraking) {
-    return ticketTraking;
+     return ticketTraking;
   }
 
   const newRecord = await TicketTraking.create({

@@ -1,6 +1,6 @@
 import AppError from "../../errors/AppError";
 import ContactListItem from "../../models/ContactListItem";
-import { logger } from "../../utils/logger";
+import logger from "../../utils/logger";
 import CheckContactNumber from "../WbotServices/CheckNumber";
 
 interface Data {
@@ -27,8 +27,8 @@ const UpdateService = async (data: Data): Promise<ContactListItem> => {
 
   try {
     const response = await CheckContactNumber(record.number, record.companyId);
-    record.isWhatsappValid = response.exists;
-    const number = response.jid.replace(/\D/g, "");
+    record.isWhatsappValid = response ? true : false;
+    const number = response;
     record.number = number;
     await record.save();
   } catch (e) {

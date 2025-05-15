@@ -10,14 +10,16 @@ const useDashboard = () => {
         });
         return data;
     }
+
     const getReport = async (params) => {
         const { data } = await api.request({
-            url: `/ticket/reports`,
+            url: `/ticketreport/reports`,
             method: 'GET',
             params
         });
         return data;
     }
+
     return {
         find,
         getReport

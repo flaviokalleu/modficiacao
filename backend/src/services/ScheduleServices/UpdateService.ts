@@ -13,6 +13,16 @@ interface ScheduleData {
   companyId?: number;
   ticketId?: number;
   userId?: number;
+  ticketUserId?: number | string;
+  queueId?: number | string;
+  openTicket?: string;
+  statusTicket?: string;
+  whatsappId?: number | string;
+  intervalo?: number;
+  valorIntervalo?: number;
+  enviarQuantasVezes?: number;
+  tipoDias?: number;
+  assinar?: boolean;
 }
 
 interface Request {
@@ -43,6 +53,16 @@ const UpdateUserService = async ({
     contactId,
     ticketId,
     userId,
+    ticketUserId,
+    queueId,
+    openTicket,
+    statusTicket,
+    whatsappId,
+    intervalo,
+    valorIntervalo,
+    enviarQuantasVezes,
+    tipoDias,
+    assinar
   } = scheduleData;
 
   try {
@@ -58,6 +78,16 @@ const UpdateUserService = async ({
     contactId,
     ticketId,
     userId,
+    ticketUserId,
+    queueId,
+    openTicket,
+    statusTicket,
+    whatsappId,
+    intervalo,
+    valorIntervalo,
+    enviarQuantasVezes,
+    tipoDias,
+    assinar
   });
 
   await schedule.reload();

@@ -6,7 +6,7 @@ const FindAllCompanyService = async (): Promise<Company[]> => {
   const companies = await Company.findAll({
     order: [["name", "ASC"]],
     include: [
-      { model: Plan, as: "plan", attributes: ["id", "name", "value"] },
+      { model: Plan, as: "plan", attributes: ["id", "name", "amount"] },
       { model: Setting, as: "settings" }
     ]
   });

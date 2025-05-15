@@ -77,7 +77,7 @@ export function WhatsappsFilter({ onFiltered, initialWhatsapps }) {
           <TextField
             {...params}
             variant="outlined"
-            placeholder={i18n.t("tickets.search.filterConnections")}
+            placeholder={i18n.t("tickets.search.filterConections")}
           />
         )}
       />

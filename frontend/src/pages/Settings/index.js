@@ -10,17 +10,18 @@ import { toast } from "react-toastify";
 import api from "../../services/api";
 import { i18n } from "../../translate/i18n.js";
 import toastError from "../../errors/toastError";
-import { SocketContext } from "../../context/Socket/SocketContext";
+// import { SocketContext } from "../../context/Socket/SocketContext";
+import { AuthContext } from "../../context/Auth/AuthContext";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     display: "flex",
     alignItems: "center",
-    padding: theme.spacing(4),
+    padding: theme.padding,
   },
 
   paper: {
-    padding: theme.spacing(2),
+    padding: theme.padding,
     display: "flex",
     alignItems: "center",
   },
@@ -29,16 +30,17 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: "auto",
   },
   margin: {
-    margin: theme.spacing(1),
+    // margin: theme.spacing(1),
+    margin: theme.padding,
   },
 }));
 
 const Settings = () => {
   const classes = useStyles();
+  //   const socketManager = useContext(SocketContext);
+  const { user, socket } = useContext(AuthContext);
 
   const [settings, setSettings] = useState([]);
-
-  const socketManager = useContext(SocketContext);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -53,10 +55,10 @@ const Settings = () => {
   }, []);
 
   useEffect(() => {
-    const companyId = localStorage.getItem("companyId");
-    const socket = socketManager.getSocket(companyId);
+    const companyId = user.companyId;
+    // const socket = socketManager.GetSocket();
 
-    socket.on(`company-${companyId}-settings`, (data) => {
+    const onSettingsEvent = (data) => {
       if (data.action === "update") {
         setSettings((prevState) => {
           const aux = [...prevState];
@@ -65,12 +67,13 @@ const Settings = () => {
           return aux;
         });
       }
-    });
+    };
+    socket.on(`company-${companyId}-settings`, onSettingsEvent);
 
     return () => {
-      socket.disconnect();
+      socket.off(`company-${companyId}-settings`, onSettingsEvent);
     };
-  }, [socketManager]);
+  }, [socket]);
 
   const handleChangeSetting = async (e) => {
     const selectedValue = e.target.value;
@@ -93,35 +96,40 @@ const Settings = () => {
 
   return (
     <div className={classes.root}>
-      <Container className={classes.container} maxWidth="sm">
-        <Typography variant="body2" gutterBottom>
-          {i18n.t("settings.title")}
-        </Typography>
-        <Paper className={classes.paper}>
-          <Typography variant="body1">
-            {i18n.t("settings.settings.userCreation.name")}
-          </Typography>
-          <Select
-            margin="dense"
-            variant="outlined"
-            native
-            id="userCreation-setting"
-            name="userCreation"
-            value={
-              settings && settings.length > 0 && getSettingValue("userCreation")
-            }
-            className={classes.settingOption}
-            onChange={handleChangeSetting}
-          >
-            <option value="enabled">
-              {i18n.t("settings.settings.userCreation.options.enabled")}
-            </option>
-            <option value="disabled">
-              {i18n.t("settings.settings.userCreation.options.disabled")}
-            </option>
-          </Select>
-        </Paper>
-      </Container>
+      {user.profile === "user" ?
+        <ForbiddenPage />
+        :
+        <>
+          <Container className={classes.container} maxWidth="sm">
+            <Typography variant="body2" gutterBottom>
+              {i18n.t("settings.title")}
+            </Typography>
+            <Paper className={classes.paper}>
+              <Typography variant="body1">
+                {i18n.t("settings.settings.userCreation.name")}
+              </Typography>
+              <Select
+                margin="dense"
+                variant="outlined"
+                native
+                id="userCreation-setting"
+                name="userCreation"
+                value={
+                  settings && settings.length > 0 && getSettingValue("userCreation")
+                }
+                className={classes.settingOption}
+                onChange={handleChangeSetting}
+              >
+                <option value="enabled">
+                  {i18n.t("settings.settings.userCreation.options.enabled")}
+                </option>
+                <option value="disabled">
+                  {i18n.t("settings.settings.userCreation.options.disabled")}
+                </option>
+              </Select>
+            </Paper>
+          </Container>
+        </>}
     </div>
   );
 };

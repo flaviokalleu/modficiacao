@@ -16,7 +16,6 @@ import QuickMessage from "../models/QuickMessage";
 import Help from "../models/Help";
 import TicketTraking from "../models/TicketTraking";
 import UserRating from "../models/UserRating";
-import QueueOption from "../models/QueueOption";
 import Schedule from "../models/Schedule";
 import Tag from "../models/Tag";
 import TicketTag from "../models/TicketTag";
@@ -30,17 +29,32 @@ import Announcement from "../models/Announcement";
 import Chat from "../models/Chat";
 import ChatUser from "../models/ChatUser";
 import ChatMessage from "../models/ChatMessage";
+import Chatbot from "../models/Chatbot";
+import DialogChatBots from "../models/DialogChatBots";
+import QueueIntegrations from "../models/QueueIntegrations";
 import Invoices from "../models/Invoices";
 import Subscriptions from "../models/Subscriptions";
-import BaileysChats from "../models/BaileysChats";
+import ApiUsages from "../models/ApiUsages";
 import Files from "../models/Files";
 import FilesOptions from "../models/FilesOptions";
+import ContactTag from "../models/ContactTag";
+import CompaniesSettings from "../models/CompaniesSettings";
+import LogTicket from "../models/LogTicket";
 import Prompt from "../models/Prompt";
-import QueueIntegrations from "../models/QueueIntegrations";
+import Partner from "../models/Partner";
+import ContactWallet from "../models/ContactWallet";
+import ScheduledMessages from "../models/ScheduledMessages";
+import ScheduledMessagesEnvio from "../models/ScheduledMessagesEnvio";
+import Versions from "../models/Versions";
+import { FlowDefaultModel } from "../models/FlowDefault";
+import { FlowBuilderModel } from "../models/FlowBuilder";
+import { FlowAudioModel } from "../models/FlowAudio";
+import { FlowCampaignModel } from "../models/FlowCampaign";
+import { FlowImgModel } from "../models/FlowImg";
+import { WebhookModel } from "../models/Webhook";
 
 // eslint-disable-next-line
 const dbConfig = require("../config/database");
-// import dbConfig from "../config/database";
 
 const sequelize = new Sequelize(dbConfig);
 
@@ -48,6 +62,7 @@ const models = [
   Company,
   User,
   Contact,
+  ContactTag,
   Ticket,
   Message,
   Whatsapp,
@@ -62,7 +77,6 @@ const models = [
   Help,
   TicketTraking,
   UserRating,
-  QueueOption,
   Schedule,
   Tag,
   TicketTag,
@@ -76,13 +90,28 @@ const models = [
   Chat,
   ChatUser,
   ChatMessage,
+  Chatbot,
+  DialogChatBots,
+  QueueIntegrations,
   Invoices,
   Subscriptions,
-  BaileysChats,
+  ApiUsages,
   Files,
   FilesOptions,
+  CompaniesSettings,
+  LogTicket,
   Prompt,
-  QueueIntegrations,
+  Partner,
+  ContactWallet,
+  ScheduledMessages,
+  ScheduledMessagesEnvio,
+  Versions,
+  FlowDefaultModel,
+  FlowBuilderModel,
+  FlowAudioModel,
+  FlowCampaignModel,
+  FlowImgModel,
+  WebhookModel
 ];
 
 sequelize.addModels(models);

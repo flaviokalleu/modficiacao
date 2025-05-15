@@ -1,7 +1,7 @@
 import Queue from "../models/Queue";
 import Company from "../models/Company";
 import User from "../models/User";
-import Setting from "../models/Setting";
+import jwt from "jsonwebtoken";
 
 interface SerializedUser {
   id: number;
@@ -12,10 +12,32 @@ interface SerializedUser {
   company: Company | null;
   super: boolean;
   queues: Queue[];
-  allTicket: string,
+  startWork: string;
+  endWork: string;
+  allTicket: string;
+  whatsappId: number;
+  profileImage: string;
+  defaultTheme: string;
+  defaultMenu: string;
+  allHistoric: string;
+  allUserChat?: string;
+  defaultTicketsManagerWidth?: number;
+  userClosePendingTicket?: string;
+  showDashboard?: string;
+  token?: string;
+  allowGroup: boolean;
+  allowRealTime: string;
+  allowConnections: string;
 }
 
 export const SerializeUser = async (user: User): Promise<SerializedUser> => {
+  // Gera um token de 32 bytes
+  const generateToken = (userId: number | string): string => {
+    // Gerar o token com base no userId e sua chave secreta
+    const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "1h" }); // Você pode definir o tempo de expiração conforme necessário
+    return token;
+  };
+
   return {
     id: user.id,
     name: user.name,
@@ -25,6 +47,21 @@ export const SerializeUser = async (user: User): Promise<SerializedUser> => {
     company: user.company,
     super: user.super,
     queues: user.queues,
-	allTicket: user.allTicket,
+    startWork: user.startWork,
+    endWork: user.endWork,
+    allTicket: user.allTicket,
+    whatsappId: user.whatsappId,
+    profileImage: user.profileImage,
+    defaultTheme: user.defaultTheme,
+    defaultMenu: user.defaultMenu,
+    allHistoric: user.allHistoric,
+    allUserChat: user.allUserChat,
+    defaultTicketsManagerWidth: user.defaultTicketsManagerWidth,
+    userClosePendingTicket: user.userClosePendingTicket,
+    showDashboard: user.showDashboard,
+    token: generateToken(user.id),
+    allowGroup: user.allowGroup,
+    allowRealTime: user.allowRealTime,
+    allowConnections: user.allowConnections
   };
 };
